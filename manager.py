@@ -77,7 +77,7 @@ class VillageManager:
                         "low_profile" in data and data["low_profile"]
                     ):
                         if verbose:
-                            print(
+                            logger.info(
                                 "Farm %s had very low resources, now back up to normal? (%d avg total), resetting farm time"
                                 % (farm, total / len(num_attack))
                             )
@@ -118,7 +118,7 @@ class VillageManager:
                             else r["losses"][unit]
                         )
                     if total_loss_count > 10 and verbose:
-                        print(
+                        logger.info(
                             f"[Farm Manager] Dangerous: {r} -> {total_loss_count} total loss count, extending farm time"
                         )
                     if total_loss_count > 10:
