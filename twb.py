@@ -10,6 +10,7 @@ import os
 import collections
 import traceback
 import requests
+import logging
 
 from core.extractors import Extractor
 from core.request import WebWrapper
@@ -35,6 +36,7 @@ class TWB:
     should_run = True
     runs = 0
     world_unit_speed = 1
+    logger = logging.getLogger("TWB")
 
     def internet_online(self):
         try:
@@ -44,13 +46,13 @@ class TWB:
             return False
 
     def manual_config(self):
-        print("Hello and welcome, it looks like you don't have a config file (yet)")
+        self.logger.info("Hello and welcome, it looks like you don't have a config file (yet)")
         if not os.path.exists("config.example.json"):
-            print(
+            self.logger.info(
                 "Oh no, config.example.json and config.json do not exist. You broke something didn't you?"
             )
             return False
-        print(
+        self.logger.info(
             "Please enter the current (logged-in) URL of the world you are playing on (or q to exit)"
         )
         input_url = input("URL: ")
@@ -59,8 +61,8 @@ class TWB:
         server = input_url.split("://")[1].split("/")[0]
         game_endpoint = input_url.split("?")[0]
         sub_parts = server.split(".")[0]
-        print("Game endpoint: %s" % game_endpoint)
-        print("World: %s" % sub_parts.upper())
+        self.logger.info("Game endpoint: %s" % game_endpoint)
+        self.logger.info("World: %s" % sub_parts.upper())
         check = input("Does this look correct? [nY]")
         if "y" in check.lower():
             browser_ua = input(
@@ -68,7 +70,7 @@ class TWB:
                 "(to lower detection rates). Just google what is my user agent> "
             )
             if browser_ua and len(browser_ua) < 10:
-                print(
+                self.logger.info(
                     "It should start with Chrome, Firefox or something. Please try again"
                 )
                 return self.manual_config()
@@ -80,7 +82,7 @@ class TWB:
             PS. make sure to regularly (1-2 per day) logout/login using the browser session and supply the new cookie string. 
             Using a single session for 24h straight will probably result in a ban
             """
-            print(disclaimer)
+            self.logger.info(disclaimer)
             final_check = input(
                 "Do you understand this and still wish to continue, please type: yes and press enter> "
             )
@@ -99,7 +101,7 @@ class TWB:
                     json.dump(template, newcf, indent=2, sort_keys=False)
                     print("Deployed new configuration file")
                     return True
-        print("Make sure your url starts with https:// and contains the game.php? part")
+        self.logger.info("Make sure your url starts with https:// and contains the game.php? part")
         return self.manual_config()
 
     def config(self):
@@ -113,13 +115,13 @@ class TWB:
             if self.manual_config():
                 return self.config()
             else:
-                print("Unable to start without a valid config file")
+                self.logger.info("Unable to start without a valid config file")
                 sys.exit(1)
         config = None
         with open("config.json", "r") as f:
             config = json.load(f, object_pairs_hook=collections.OrderedDict)
         if template and config["build"]["version"] != template["build"]["version"]:
-            print(
+            self.logger.info(
                 "Outdated config file found, merging (old copy saved as config.bak)\n"
                 "Remove config.example.json to disable this behaviour"
             )
@@ -128,7 +130,7 @@ class TWB:
             config = self.merge_configs(config, template)
             with open("config.json", "w") as newcf:
                 json.dump(config, newcf, indent=2, sort_keys=False)
-                print("Deployed new configuration file")
+                self.logger.info("Deployed new configuration file")
         return config
 
     def merge_configs(self, old_config, new_config):
@@ -157,7 +159,7 @@ class TWB:
             result_villages = Extractor.village_ids_from_overview(result_get)
             for found_vid in result_villages:
                 if found_vid not in config["villages"]:
-                    print(
+                    self.logger.info(
                         "Village %s was found but no config entry was found. Adding automatically"
                         % found_vid
                     )
@@ -173,14 +175,14 @@ class TWB:
         with open("config.bak", "w") as backup:
             json.dump(original, backup, indent=2, sort_keys=False)
         if not template and "village_template" not in original:
-            print("Village entry %s could not be added to the config file!" % vid)
+            self.logger.info("Village entry %s could not be added to the config file!" % vid)
             return
         original["villages"][vid] = (
             template if template else original["village_template"]
         )
         with open("config.json", "w") as newcf:
             json.dump(original, newcf, indent=2, sort_keys=False)
-            print("Deployed new configuration file")
+            self.logger.info("Deployed new configuration file")
 
     def get_world_options(self, overview_page, config):
         changed = False
@@ -231,7 +233,7 @@ class TWB:
     def run(self):
         config = self.config()
         if not self.internet_online():
-            print("Internet seems to be down, waiting till its back online...")
+            self.logger.info("Internet seems to be down, waiting till its back online...")
             sleep = 0
             active_h = [int(x) for x in config["bot"]["active_hours"].split("-")]
             get_h = time.localtime().tm_hour
@@ -244,7 +246,7 @@ class TWB:
             sleep += random.randint(20, 120)
             dtn = datetime.datetime.now()
             dt_next = dtn + datetime.timedelta(0, sleep)
-            print(
+            self.logger.info(
                 "Dead for %f.2 minutes (next run at: %s)" % (sleep / 60, dt_next.time())
             )
             time.sleep(sleep)
@@ -266,7 +268,7 @@ class TWB:
 
         self.wrapper.start()
         if not config["bot"].get("user_agent", None):
-            print(
+            self.logger.info(
                 "No custom user agent was supplied, this will likely get you banned."
                 "Please set the bot -> user_agent parameter to your browsers one. "
                 "Just google what is my user agent"
@@ -282,11 +284,11 @@ class TWB:
         self.wrapper.discord.send("TWB starting...")
         while self.should_run:
             if not self.internet_online():
-                print("Internet seems to be down, waiting till its back online...")
+                self.logger.info("Internet seems to be down, waiting till its back online...")
                 sleep = 0
                 active_h = [int(x) for x in config["bot"]["active_hours"].split("-")]
                 get_h = time.localtime().tm_hour
-                print("Current hour: %s" % get_h)
+                self.logger.info("Current hour: %s" % get_h)
                 if get_h in range(active_h[0], active_h[1]):
                     sleep = config["bot"]["active_delay"]
                 else:
@@ -296,7 +298,7 @@ class TWB:
                 sleep += random.randint(20, 120)
                 dtn = datetime.datetime.now()
                 dt_next = dtn + datetime.timedelta(0, sleep)
-                print(
+                self.logger.info(
                     "Dead for %f.2 minutes (next run at: %s)"
                     % (sleep / 60, dt_next.time())
                 )
@@ -306,16 +308,16 @@ class TWB:
                 result_villages, res_text = self.get_overview(config)
                 has_changed, new_cf = self.get_world_options(res_text.text, config)
                 if has_changed:
-                    print("Updated world options")
+                    self.logger.info("Updated world options")
                     config = self.merge_configs(config, new_cf)
                     with open("config.json", "w") as newcf:
                         json.dump(config, newcf, indent=2, sort_keys=False)
-                        print("Deployed new configuration file")
+                        self.logger.info("Deployed new configuration file")
                 vnum = 1
                 seconds_till_next_event = 1000000000000000000000000000000
                 for vil in list(set(self.villages)):
                     if result_villages and vil.village_id not in result_villages:
-                        print(
+                        self.logger.info(
                             "Village %s will be ignored because it is not available anymore"
                             % vil.village_id
                         )
@@ -360,7 +362,7 @@ class TWB:
 
                 if len(defense_states) and config["farms"]["farm"]:
                     for vil in self.villages:
-                        print("Syncing attack states")
+                        self.logger.info("Syncing attack states")
                         vil.def_man.my_other_villages = defense_states
 
                 sleep = 0
@@ -368,13 +370,13 @@ class TWB:
                 get_h = time.localtime().tm_hour
                 if get_h in range(active_h[0], active_h[1]):
                     sleep = config["bot"]["active_delay"]
-                    print(
+                    self.logger.info(
                         f"Seconds until next event for a village: {round(seconds_till_next_event, 2)}"
                     )
                     # if sleep > seconds_till_next_event:
                     #     print("Sleep would be more than the next event for a village!")
                     if sleep < seconds_till_next_event:
-                        print(
+                        self.logger.info(
                             "Sleep is less than the next event for a village! Delaying until next event..."
                         )
                         sleep = seconds_till_next_event
@@ -382,7 +384,7 @@ class TWB:
                     if config["bot"]["inactive_still_active"]:
                         sleep = config["bot"]["inactive_delay"]
                     else:
-                        print(
+                        self.logger.info(
                             "Getting 7 hours of sleep! Probally the session will time-out!!"
                         )
                         sleep = 25200
@@ -393,7 +395,7 @@ class TWB:
                 self.runs += 1
 
                 VillageManager.farm_manager(verbose=True)
-                print(
+                self.logger.info(
                     "Dead for %f minutes (next run at: %s)"
                     % (round(sleep / 60, 2), dt_next.time())
                 )
@@ -428,6 +430,6 @@ for x in range(3):
     except Exception as e:
         t.wrapper.reporter.report(0, "TWB_EXCEPTION", str(e))
         t.wrapper.discord.send("TWB crashed, check logs for more information - %s" % str(e))
-        print("I crashed :(   %s" % str(e))
+        t.logger.error("I crashed :(   %s" % str(e))
         traceback.print_exc()
         pass
