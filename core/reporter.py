@@ -55,7 +55,7 @@ class MySQLReporter(RemoteReporter):
         con = self.connection_from_object(connection)
         cur = con.cursor()
         cur.execute(
-            "INSERT INTO twb_logs (village, action, data, ts) VALUES (%s, %s, %s, NOW())",
+            "INSERT INTO twb_logs (village_id, action, data, ts) VALUES (%s, %s, %s, NOW())",
             (village_id, action, data),
         )
         con.commit()
