@@ -11,12 +11,12 @@
       "stable": {
         "light": 1000,
         "spy": 500
-       },
-       "workshop": {
+      },
+      "workshop": {
         "ram": 150,
         "spy": 500
-       }
-      },
+      }
+    },
     "farm": [
         {"light": 100, "spy": 1}
     ]

@@ -8,9 +8,9 @@
         "spear": 20
       }
     },
-    "farm": [
-        {"spear": 2, "sword": 2}
-    ]
+    "farm": {
+      "spear": 20
+    }
   },
   {
     "building": "barracks",
@@ -22,14 +22,16 @@
       }
     },
     "farm": [
-        {"spear": 2, "sword": 2}
+        {"spear": 20, "knight": 1},
+        {"spear": 20},
+        {"spear": 15, "sword": 20}
     ]
   },
   {
     "building": "smith",
     "level": 3,
-     "upgrades": {
-        "sword": 1
+    "upgrades": {
+      "sword": 1
     },
     "build": {
       "barracks": {
@@ -38,7 +40,9 @@
       }
     },
     "farm": [
-        {"spear": 2, "sword": 2}
+        {"spear": 20, "knight": 1},
+        {"spear": 20},
+        {"spear": 15, "sword": 20}
     ]
   },
   {
@@ -51,7 +55,9 @@
       }
     },
     "farm": [
-        {"spear": 2, "sword": 2}
+        {"spear": 20, "knight": 1},
+        {"spear": 20},
+        {"spear": 15, "sword": 20}
     ]
   },
   {
@@ -61,7 +67,7 @@
       "barracks": {
         "spear": 150,
         "archer": 10,
-        "sword": 150
+        "sword": 70
       },
       "stable": {
         "spy": 10,
@@ -69,8 +75,7 @@
       }
     },
     "farm": [
-        {"spear": 2, "sword": 2},
-        {"light": 2}
+        {"light": 5}
     ]
   },
   {
@@ -82,8 +87,8 @@
     },
     "build": {
       "barracks": {
-        "spear": 350,
-        "sword": 200,
+        "spear": 200,
+        "sword": 150,
         "archer": 50
       },
       "stable": {
@@ -92,7 +97,7 @@
       }
     },
     "farm": [
-        {"light": 2}
+        {"light": 5}
     ]
   },
   {
@@ -100,9 +105,9 @@
     "level": 6,
     "build": {
       "barracks": {
-        "spear": 450,
-        "sword": 450,
-        "archer": 250
+        "spear": 250,
+        "sword": 150,
+        "archer": 100
       },
       "stable": {
         "spy": 25,
@@ -110,7 +115,7 @@
       }
     },
     "farm": [
-        {"light": 2}
+        {"light": 5}
     ]
   },
   {
@@ -123,17 +128,17 @@
     },
     "build": {
       "barracks": {
-        "spear": 1000,
-        "sword": 950,
-        "archer": 750
+        "spear": 350,
+        "sword": 350,
+        "archer": 150
       },
       "stable": {
-        "spy": 130,
-        "light": 85
+        "spy": 150,
+        "light": 50
       }
     },
     "farm": [
-        {"light": 2}
+        {"light": 10}
     ]
   },
   {
@@ -146,18 +151,18 @@
     },
     "build": {
       "barracks": {
-        "spear": 3000,
-        "sword": 3000,
-        "archer": 3000
+        "spear": 1000,
+        "sword": 1000,
+        "archer": 1000
       },
       "stable": {
-        "spy": 350,
-        "light": 200,
-        "heavy": 50
+        "spy": 500,
+        "light": 100,
+        "heavy": 150
       }
     },
     "farm": [
-        {"light": 2}
+        {"light": 20}
     ]
   },
   {
@@ -178,12 +183,12 @@
       },
       "stable": {
         "spy": 500,
-        "light": 250,
-        "heavy": 250
+        "light": 150,
+        "heavy": 150
       }
     },
     "farm": [
-        {"light": 2}
+        {"light": 20}
     ]
   }
 ]

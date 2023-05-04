@@ -9,7 +9,7 @@
       }
     },
     "farm": [
-        {"spear": 20},
+        {"spear": 20}
     ]
   },
   {
@@ -22,7 +22,9 @@
       }
     },
     "farm": [
-        {"spear": 20},
+      {"spear": 30, "knight": 1},
+      {"spear": 30},
+      {"spear": 15, "sword": 20}
     ]
   },
   {
@@ -36,8 +38,8 @@
       }
     },
     "farm": [
-        {"axe": 5},
-        {"spear": 15}
+      {"axe": 5},
+      {"spear": 15}
     ]
   },
   {
@@ -50,10 +52,12 @@
         "sword": 50
       }
     },
-    "farm": {
-      "axe": 5,
-      "spear": 15
-    }
+    "farm": [
+      {"axe": 15, "spy": 1},
+      {"spear": 30, "spy": 1},
+      {"axe": 15},
+      {"spear": 30}
+    ]
   },
   {
     "building": "stable",
@@ -74,9 +78,12 @@
       }
     },
     "farm": [
-        {"spear": 20},
-        {"axe": 5, "spear": 10},
-        {"light": 5}
+      {"spear": 50, "spy": 1},
+      {"light": 5, "spy": 1},
+      {"axe": 15, "spy": 1},
+      {"spear": 30, "spy": 1},
+      {"axe": 15},
+      {"spear": 30}
     ]
   },
   {
@@ -158,7 +165,7 @@
         "catapult": 1
     },
     "build": {
-     "barracks": {
+      "barracks": {
         "spear": 250,
         "axe": 750,
         "sword": 100
@@ -212,7 +219,7 @@
     "building": "smith",
     "level": 15,
     "upgrades": {
-         "axe": 10,
+        "axe": 10,
         "light": 10,
         "ram": 10,
         "catapult": 10,

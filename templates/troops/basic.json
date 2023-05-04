@@ -30,7 +30,7 @@
   {
     "building": "smith",
     "level": 3,
-     "upgrades": {
+    "upgrades": {
         "sword": 1,
         "axe": 1
     },
