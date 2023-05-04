@@ -1,7 +1,7 @@
 ### NEW in 1.7
 - Merged various features together from davidakachaos
 
-### Forked! Every commit and version after this (⬇️) release is developed by rikei457.
+### Forked! Every commit and version after this (⬇️) release is developed by rikie457.
 
 ### NEW in 1.6.2
 - discord notifier pp ratio as external object with a lot more logic
