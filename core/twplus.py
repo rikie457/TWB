@@ -8,17 +8,17 @@ import logging
 
 class TwPlus:
     max_levels = {
-        'main': 30,
-        'barracks': 25,
-        'stable': 20,
-        'garage': 15,
-        'smith': 20,
-        'snob': 3,
-        'market': 25,
-        'wood': 30,
-        'stone': 30,
-        'iron': 30,
-        'wall': 20
+        "main": 30,
+        "barracks": 25,
+        "stable": 20,
+        "garage": 15,
+        "smith": 20,
+        "snob": 3,
+        "market": 25,
+        "wood": 30,
+        "stone": 30,
+        "iron": 30,
+        "wall": 20,
     }
 
     output = {}
@@ -32,9 +32,7 @@ class TwPlus:
         return total
 
     def get_building_data(self, world):
-        output = {
-
-        }
+        output = {}
         for x in range(1, 31):
             out_params = {}
             for building in self.max_levels:
@@ -48,12 +46,12 @@ class TwPlus:
                 return
 
             table = bdata.group(1)
-            body = table.split('<tbody>')[1].split('</tbody>')[0].strip()
+            body = table.split("<tbody>")[1].split("</tbody>")[0].strip()
 
-            for tr in re.findall(r'(?s)<tr.*?>(.+?)</tr>', body):
-                tds = re.findall(r'(?s)<td.*?>(.+?)</td>', tr)
+            for tr in re.findall(r"(?s)<tr.*?>(.+?)</tr>", body):
+                tds = re.findall(r"(?s)<td.*?>(.+?)</td>", tr)
                 vil_pop = tds[3]
-                vil_pop = re.search(r'(?s)<div.+?</div>\s*(\d+)', vil_pop)
+                vil_pop = re.search(r"(?s)<div.+?</div>\s*(\d+)", vil_pop)
                 vil_pop = int(vil_pop.group(1)) if vil_pop else 0
                 building_name = re.search(r'name="(\w+)"', tds[1]).group(1)
                 if building_name not in self.max_levels:
@@ -63,10 +61,10 @@ class TwPlus:
                 else:
                     output[building_name][x] = vil_pop
         try:
-            with open('cache/world/buildings_%s.json' % world, 'w') as f:
+            with open("cache/world/buildings_%s.json" % world, "w") as f:
                 f.write(json.dumps(output))
         except:
-            with open('../cache/world/buildings_%s.json' % world, 'w') as f:
+            with open("../cache/world/buildings_%s.json" % world, "w") as f:
                 f.write(json.dumps(output))
         self.output = output
         return output
@@ -87,15 +85,17 @@ class TwpCache:
     def get_cache(world):
         t_path = os.path.join("cache", "world", "buildings_%s" % world + ".json")
         if os.path.exists(t_path):
-            with open(t_path, 'r') as f:
+            with open(t_path, "r") as f:
                 return json.load(f)
         else:
-            t_path = os.path.join("../", "cache", "world", "buildings_%s" % world + ".json")
+            t_path = os.path.join(
+                "../", "cache", "world", "buildings_%s" % world + ".json"
+            )
             if os.path.exists(t_path):
-                with open(t_path, 'r') as f:
+                with open(t_path, "r") as f:
                     return json.load(f)
         return None
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     TwPlus().run(world=sys.argv[1])

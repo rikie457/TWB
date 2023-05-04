@@ -12,33 +12,106 @@ class ReportManager:
     village_id = None
     game_state = None
     logger = None
+    trade_got_accepted = False
+
     last_reports = {}
 
     def __init__(self, wrapper=None, village_id=None):
         self.wrapper = wrapper
         self.village_id = village_id
+def last_report_for(self, vid):
+        possible_reports = []
+        for repid in self.last_reports:
+            entry = self.last_reports[repid]
+            if vid == entry["dest"] and "when" in entry["extra"]:
+                possible_reports.append(entry)
+        if len(possible_reports) == 0:
+            return None
 
+        def highest_when(attack):
+            return datetime.fromtimestamp(int(attack["extra"]["when"]))
+
+        # self.logger.debug(f"Reports: {possible_reports}")
+        return max(possible_reports, key=highest_when)
+
+    def priority_farms(self, farms):
+        priority = []
+        for farm in farms:
+            target, distance = farm
+            has_res, res = self.has_resources_left(target["id"])
+            if has_res:
+                total_loot = 0
+                for x in res:
+                    total_loot += int(res[x])
+                if total_loot > 2000:
+                    # Found priority farm!!!
+                    self.logger.debug(
+                        f"Found priority farm!! Total loot: {total_loot} Distance: {distance}"
+                    )
+                    priority.append(farm)
+                if "unknown" in res:
+                    self.logger.debug(
+                        f"Last attack had no scout, but returned full! Distance: {distance}"
+                    )
+                    priority.append(farm)
+
+        return priority
     def has_resources_left(self, vid):
         possible_reports = []
         for repid in self.last_reports:
             entry = self.last_reports[repid]
             if vid == entry["dest"] and entry["extra"].get("when", None):
                 possible_reports.append(entry)
-        #self.logger.debug(f"Considered {len(possible_reports)} reports")
+        # self.logger.debug(f"Considered {len(possible_reports)} reports")
         if len(possible_reports) == 0:
             return False, {}
 
         def highest_when(attack):
             return datetime.fromtimestamp(int(attack["extra"]["when"]))
 
-        #self.logger.debug(f"Reports: {possible_reports}")
+        # self.logger.debug(f"Reports: {possible_reports}")
         entry = max(possible_reports, key=highest_when)
-        self.logger.debug(f'This is the newest? {datetime.fromtimestamp(int(entry["extra"]["when"]))}')
-        #self.logger.debug(f'{entry["extra"]["when"]} seems to be the last attack.')
-        # last_loot = entry["extra"]["loot"] if "loot" in entry["extra"] else None
-        if entry["extra"].get("resources", None):
-            return True, entry["extra"]["resources"]
-        return False, {}
+        if "spy" in entry["extra"]["units_sent"]:
+            if "resources" in entry["extra"] and entry["extra"]["resources"] != {}:
+                return True, entry["extra"]["resources"]
+            elif "resources" in entry["extra"] and entry["extra"]["resources"] == {}:
+                return False, {}
+        else:
+            return self.has_full_loot(entry), {"unknown": 1}
+
+    def has_full_loot(self, entry):
+        units_sent = entry["extra"]["units_sent"]
+        units_losses = entry["extra"]["units_losses"]
+        loot = entry["extra"]["loot"]
+        carry = [
+            "spear:25",
+            "sword:15",
+            "axe:10",
+            "spy:0",
+            "archer:10",
+            "light:80",
+            "marcher:50",
+            "heavy:50",
+            "knight:100",
+        ]
+        total_loot = 0
+        for x in loot:
+            total_loot += int(loot[x])
+
+        total_carry = 0
+        for unit in carry:
+            item, carry = unit.split(":")
+            if item in units_sent:
+                returning = units_sent[item]
+                if item in units_losses:
+                    returning -= units_losses[item]
+                total_carry += int(carry) * returning
+
+        self.logger.debug(
+            f"Total loot: {total_loot} out of {total_carry} cap. Full? {total_carry == total_loot}"
+        )
+
+        return total_carry == total_loot
 
     def safe_to_engage(self, vid):
         for repid in self.last_reports:
@@ -56,7 +129,7 @@ class ReportManager:
                     )
                 ):
                     return 1
-                
+
                 if entry["losses"] != {}:
                     # Acceptable losses for attacks
                     print(f'Units sent: {entry["extra"]["units_sent"]}')
@@ -66,18 +139,19 @@ class ReportManager:
                     amount = entry["extra"]["units_sent"][sent_type]
                     if sent_type in entry["losses"]:
                         if amount == entry["losses"][sent_type]:
-                            return 0 # Lost all units!
+                            return 0  # Lost all units!
                         elif entry["losses"][sent_type] <= 1:
                             # Allow to lose 1 unit (luck depended)
-                            return 1 # Lost 'just' one unit
+                            return 1  # Lost 'just' one unit
 
                 if entry["losses"] != {}:
-                    return 0 # Disengage if anything was lost!
+                    return 0  # Disengage if anything was lost!
         return -1
 
     def read(self, page=0, full_run=False):
         if not self.logger:
             self.logger = logging.getLogger("Reports")
+        self.trade_got_accepted = False
 
         if len(self.last_reports) == 0:
             self.logger.info("First run, re-reading cache entries")
@@ -108,8 +182,16 @@ class ReportManager:
                 if report_type == "ReportAttack":
                     self.attack_report(data.text, report_id)
                     continue
-
                 else:
+                    if report_type == "ReportAccept":
+                        players = re.findall(r'data-player="(\d+)"', data.text)
+                        seller = players[0]
+                        buyer = players[1]
+                        if buyer == self.game_state["player"]["id"]:
+                            self.logger.debug("We bought something on the market")
+                        elif seller == self.game_state["player"]["id"]:
+                            self.logger.debug("We sold something on the market")
+                            self.trade_got_accepted = True
                     res = self.put(report_id, report_type=report_type)
                     self.last_reports[report_id] = res
         if new == 12 or full_run and page < 20:
@@ -147,9 +229,14 @@ class ReportManager:
 
         losses = {}
 
-        attacked = re.search(r'(\d{2}\.\d{2}\.\d{2} \d{2}\:\d{2}\:\d{2})<span class=\"small grey\">', report)
+        attacked = re.search(
+            r"(\d{2}\.\d{2}\.\d{2} \d{2}\:\d{2}\:\d{2})<span class=\"small grey\">",
+            report,
+        )
         if attacked:
-            extra["when"] = int(datetime.strptime(attacked.group(1), "%d.%m.%y %H:%M:%S").timestamp())
+            extra["when"] = int(
+                datetime.strptime(attacked.group(1), "%d.%m.%y %H:%M:%S").timestamp()
+            )
 
         attacker = re.search(r'(?s)(<table id="attack_info_att".+?</table>)', report)
         if attacker:
@@ -223,7 +310,8 @@ class ReportManager:
                 extra["buildings"] = self.re_building(json.loads(raw))
             found_res = {}
             for loot_entry in re.findall(
-                r'<span class="icon header (wood|stone|iron)".+?</span>(\d+)', scout_results.group(1)
+                r'<span class="icon header (wood|stone|iron)".+?</span>(\d+)',
+                scout_results.group(1),
             ):
                 found_res[loot_entry[0]] = loot_entry[1]
             extra["resources"] = found_res

@@ -2,4 +2,5 @@ requests[socks]
 coloredlogs
 psutil
 flask
+beautifulsoup4
 discord_webhook

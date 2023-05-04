@@ -48,11 +48,11 @@ class VillageManager:
             if total_sent_count > 0:
                 percentage_lost = total_loss_count / total_sent_count * 100
 
-            perf = ""
+            perf = "Normal ".rjust(15)
             if data["high_profile"]:
-                perf = "High Profile "
+                perf = "High Profile ".rjust(15)
             if "low_profile" in data and data["low_profile"]:
-                perf = "Low Profile "
+                perf = "Low Profile ".rjust(15)
             if verbose:
                 logger.info(
                     "%sFarm village %s attacked %d times - Total loot: %s - Total units lost: %s (%s)",
@@ -73,6 +73,16 @@ class VillageManager:
                             )
                         data["low_profile"] = True
                         AttackCache.set_cache(farm, data)
+                    elif total / len(num_attack) >= 100 and (
+                        "low_profile" in data and data["low_profile"]
+                    ):
+                        if verbose:
+                            print(
+                                "Farm %s had very low resources, now back up to normal? (%d avg total), resetting farm time"
+                                % (farm, total / len(num_attack))
+                            )
+                        data["low_profile"] = False
+                        AttackCache.set_cache(farm, data)
                     elif total / len(num_attack) > 500 and (
                         "high_profile" not in data or not data["high_profile"]
                     ):
@@ -85,21 +95,43 @@ class VillageManager:
                         AttackCache.set_cache(farm, data)
 
             if percentage_lost > 20 and not data["low_profile"]:
-                logger.warning(f"Dangerous {percentage_lost} percentage lost units! Extending farm time")
+                logger.warning(
+                    f"Dangerous {percentage_lost} percentage lost units! Extending farm time"
+                )
                 data["low_profile"] = True
                 data["high_profile"] = False
                 AttackCache.set_cache(farm, data)
-            if percentage_lost > 50 and len(num_attack) > 10:
-                logger.critical("Farm seems too dangerous/ unprofitable to farm. Setting safe to false!")
-                data["safe"] = False
-                AttackCache.set_cache(farm, data)
+            # if percentage_lost > 50 and len(num_attack) > 10:
+            #     print("[Farm Manager] Farm seems too dangerous/ unprofitable to farm. Setting safe to false!")
+            #     data["safe"] = False
+            #     AttackCache.set_cache(farm, data)
+
+        for report in reports:
+            r = reports[report]
+            total_loss_count = 0
+            if r["type"] == "scout" or r["type"] == "attack":
+                if r["losses"] != {}:
+                    for unit in r["losses"]:
+                        total_loss_count += (
+                            r["losses"][unit] * 2
+                            if unit == "light"
+                            else r["losses"][unit]
+                        )
+                    if total_loss_count > 10 and verbose:
+                        print(
+                            f"[Farm Manager] Dangerous: {r} -> {total_loss_count} total loss count, extending farm time"
+                        )
+                    if total_loss_count > 10:
+                        data["low_profile"] = True
+                        AttackCache.set_cache(farm, data)
 
         if verbose:
             logger.info("Total loot: %s" % t)
 
         if clean_reports:
             list_of_files = sorted(["./cache/reports/" + f for f in os.listdir("./cache/reports/")],
-                                   key=os.path.getctime)
+                                   key=os.path.getctime,
+        )
 
             logger.info(f"Found {len(list_of_files)} files")
 

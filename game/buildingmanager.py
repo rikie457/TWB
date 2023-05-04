@@ -2,6 +2,7 @@ from core.extractors import Extractor
 import time
 import logging
 import re
+from datetime import datetime, timedelta
 
 
 class BuildingManager:
@@ -27,24 +28,34 @@ class BuildingManager:
         self.wrapper = wrapper
         self.village_id = village_id
 
-    def start_update(self, build=False, set_village_name=None):
+    def update_building_levels(self):
+        tmp = self.game_state["village"]["buildings"]
+        for e in tmp:
+            tmp[e] = int(tmp[e])
+        self.levels = tmp
 
+    def start_update(self, build=False, set_village_name=None):
         main_data = self.wrapper.get_action(village_id=self.village_id, action="main")
+
+        self.costs = Extractor.building_data(main_data)
         self.game_state = Extractor.game_state(main_data)
         vname = self.game_state["village"]["name"]
-
         if not self.logger:
             self.logger = logging.getLogger("Builder: %s" % vname)
-
-        if self.complete_actions(main_data.text):
-            return self.start_update(build=build, set_village_name=set_village_name)
-        self.costs = Extractor.building_data(main_data)
+        # Check if premium account is active or not
+        if self.max_queue_len > 2:
+            if self.game_state["features"]["Premium"]["active"] == False:
+                self.logger.warning(
+                    f"Premium account seems to be inactive! You set a max length of {self.max_queue_len}. Without PA only 2 are allowed!"
+                )
+                self.max_queue_len = 2
 
         if self.resman:
             self.resman.update(self.game_state)
             if "building" in self.resman.requested:
                 # new run, remove request
                 self.resman.requested["building"] = {}
+        vname = self.game_state["village"]["name"]
         if set_village_name and vname != set_village_name:
             self.wrapper.post_url(
                 url="game.php?village=%s&screen=main&action=change_name"
@@ -52,15 +63,21 @@ class BuildingManager:
                 data={"name": set_village_name, "h": self.wrapper.last_h},
             )
 
+        if self.complete_actions(main_data.text):
+            return self.start_update(build=build, set_village_name=set_village_name)
+
         self.logger.debug("Updating building levels")
         tmp = self.game_state["village"]["buildings"]
         for e in tmp:
             tmp[e] = int(tmp[e])
         self.levels = tmp
-        existing_queue = self.get_existing_items(main_data)
-        if existing_queue == 0:
-            self.waits = []
-            self.waits_building = []
+        # existing_queue = self.get_existing_items(main_data)
+        # Load the existing queue with times
+        # if existing_queue != 0 and existing_queue != len(self.waits):
+        self.logger.info("Syncing building queue...")
+        self.load_existing_queue(main_data)
+        self.logger.info(f"Loaded {len(self.waits)} items from queue")
+
         if self.is_queued():
             self.logger.info(
                 "No build operation was executed: queue full, %d left" % len(self.queue)
@@ -69,20 +86,15 @@ class BuildingManager:
         if not build:
             return False
 
-        if existing_queue != 0 and existing_queue != len(self.waits):
-            if existing_queue > 1:
-                self.logger.warning(
-                    "Building queue out of sync, waiting until %d manual actions are finished!"
-                    % existing_queue
-                )
-                return True
-            else:
-                self.logger.info("Just 1 manual action left, trying to queue next building")
+        self.logger.debug(f"Max queue: {self.max_queue_len} Current: {len(self.waits)}")
+        if len(self.waits) >= self.max_queue_len:
+            self.logger.info(
+                "No build more operations where executed (%d current, %d left)"
+                % (len(self.waits), len(self.queue))
+            )
+            return False
 
-        if existing_queue == 1:
-            r = self.max_queue_len - 1
-        else:
-            r = self.max_queue_len - len(self.waits)
+        r = self.max_queue_len - len(self.waits)
         for x in range(r):
             result = self.get_next_building_action()
             if not result:
@@ -107,6 +119,8 @@ class BuildingManager:
                 % (self.village_id, self.wrapper.last_h, res.group(1))
             )
             self.logger.debug("Quick build action was completed, re-running function")
+            if len(self.waits) > 0:
+                self.waits.pop(0)
             return True
         return False
 
@@ -134,6 +148,18 @@ class BuildingManager:
     def get_existing_items(self, text):
         waits = Extractor.active_building_queue(text)
         return waits
+
+    def load_existing_queue(self, text):
+        self.waits, self.waits_building = Extractor.new_active_building_queue(text)
+        for idx, b in enumerate(self.waits_building):
+            # Update the building level, like queuing a new action
+            self.waits[idx] = (
+                datetime.fromtimestamp(self.waits[idx]) + timedelta(minutes=10)
+            ).timestamp()
+            self.logger.debug(
+                f"{b} upgrading {self.levels[b]} -> {self.levels[b] + 1} (Finishes at {datetime.fromtimestamp(self.waits[idx])})"
+            )
+            self.levels[b] += 1
 
     def has_enough(self, build_item):
         if (
@@ -176,7 +202,9 @@ class BuildingManager:
             self.resman.request(source="building", resource="pop", amount=req)
             r = False
         if not r:
-            self.logger.debug(f"Requested resources: {self.resman.requested}")
+            self.logger.debug(
+                f"Requested resources: {self.resman.requested} for {build_item['id']}"
+            )
         return r
 
     def get_level(self, building):
@@ -206,16 +234,24 @@ class BuildingManager:
             return False
 
         if self.resman and self.resman.in_need_of("pop"):
-            build_data = "farm:%d" % (int(self.levels["farm"]) + 1)
-            if (
-                len(self.queue)
-                and "farm"
-                not in [x.split(":")[0] for x in self.queue[0 : self.max_lookahead]]
-                and int(self.levels["farm"]) != 30
-            ):
-                self.queue.insert(0, build_data)
-                self.logger.info("Adding farm in front of queue because low on pop")
-                return self.get_next_building_action(0)
+            if "farm" in self.waits_building:
+                self.logger.info(
+                    f"Low on pop, but farm already in queue as number {self.waits_building.index('farm') + 1}!"
+                )
+                for x in self.resman.requested:
+                    if "recruitment_" in x and "pop" in self.resman.requested[x]:
+                        self.resman.requested[x]["pop"] = 0
+            else:
+                build_data = "farm:%d" % (int(self.levels["farm"]) + 1)
+                if (
+                    len(self.queue)
+                    and "farm"
+                    not in [x.split(":")[0] for x in self.queue[0 : self.max_lookahead]]
+                    and int(self.levels["farm"]) != 30
+                ):
+                    self.queue.insert(0, build_data)
+                    self.logger.info("Adding farm in front of queue because low on pop")
+                    return self.get_next_building_action(0)
 
         if len(self.queue):
             entry = self.queue[index]
@@ -260,6 +296,9 @@ class BuildingManager:
                 result = self.wrapper.get_url(check["build_link"].replace("amp;", ""))
                 self.game_state = Extractor.game_state(result)
                 self.costs = Extractor.building_data(result)
+                if self.resman:
+                    for x in ["wood", "stone", "iron"]:
+                        self.resman.actual[x] -= check[x]
                 if self.resman and "building" in self.resman.requested:
                     # Build something, remove request
                     self.resman.requested["building"] = {}

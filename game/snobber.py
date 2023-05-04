@@ -49,6 +49,9 @@ class SnobManager:
             self.using_coin_system = True
         game_data = Extractor.game_state(result)
         self.resman.update(game_data)
+        # New run, remove old requests
+        if "snob" in self.resman.requested:
+            self.resman.requested["snob"] = {}
 
         can_recruit = re.search(
             r"(?s)</th><th>(\d+)</th></tr>\s*</table><br />", result.text
@@ -78,12 +81,22 @@ class SnobManager:
                 "No more snobs available, awaiting snob creating, snob death or village loss"
             )
             return False
-        train_snob_url = "game.php?village=%s&screen=snob&action=train&h=%s" % (
-            self.village_id,
-            self.wrapper.last_h,
-        )
-        self.wrapper.get_url(train_snob_url)
-        return True
+        # Get resources for next snob
+        next_snob_resources = re.search(r"train.next_snob = ({.+})", result.text)
+        if next_snob_resources:
+            needed = json.loads(next_snob_resources.group(1))
+            if self.has_enough(needed):
+                train_snob_url = "game.php?village=%s&screen=snob&action=train&h=%s" % (
+                    self.village_id,
+                    self.wrapper.last_h,
+                )
+                self.wrapper.get_url(train_snob_url)
+                return True
+            else:
+                return False
+        else:
+            self.logger.warning("Could not find next snob resources!")
+            return False
 
     def storage_item(self, result):
         storage_re = re.search(r"train\.storage_item = (\{.+?\})", result)
@@ -139,6 +152,8 @@ class SnobManager:
             req = build_item["iron"] - self.resman.actual["iron"]
             self.resman.request(source="snob", resource="iron", amount=req)
             r = False
+        if not r:
+            self.logger.info(f"Not enough resources available, requested {build_item}")
         return r
 
     def run(self):

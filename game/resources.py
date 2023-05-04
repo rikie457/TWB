@@ -2,13 +2,15 @@ import logging
 import time
 import re
 from core.extractors import Extractor
+from bs4 import BeautifulSoup as Soup
+import random
 
 
 class ResourceManager:
     actual = {}
 
     requested = {}
-    
+
     last_notify = {"wood": {"time": 0, "amount": 0},
                    "iron": {"time": 0, "amount": 0},
                    "stone": {"time": 0, "amount": 0}
@@ -27,6 +29,9 @@ class ResourceManager:
     wrapper = None
     village_id = None
     do_premium_trade = False
+    resources_kept_safe = {}
+    resources_on_market = {}
+    traded_resources = False
 
     def __init__(self, wrapper=None, village_id=None):
         self.wrapper = wrapper
@@ -43,11 +48,50 @@ class ResourceManager:
         self.check_state()
         self.continent = Extractor.continent(game_state["village"]["display_name"])
         self.logger = logging.getLogger(f'Resource Manager: {game_state["village"]["name"]}')
-        
+
     def update_notify_resource(self, resource, amount):
         timestamp = int(time.time())
         self.last_notify[resource]["time"] = timestamp
         self.last_notify[resource]["amount"] = amount
+
+    def any_resource_full(self):
+        for res in ["wood", "stone", "iron"]:
+            if self.actual[res] == self.storage:
+                return True
+        return False
+
+    def manage_full_resource(self):
+        if self.any_resource_full():
+            self.logger.info(
+                "Village storage is full! Trying to add resource to the market for safe keeping."
+            )
+            for res in ["wood", "stone", "iron"]:
+                if self.actual[res] == self.storage:
+                    counter = ["stone", "wood", "iron"]
+                    counter.remove(res)
+                    c = random.choice(counter)
+                    self.logger.info(f"Adding {res} for {c} to market for safe keeping")
+                    if self.trade(res, 1000, c, 1000, False):
+                        self.actual[res] -= 1000
+                        if res in self.resources_kept_safe:
+                            self.resources_kept_safe[res] += 1000
+                        else:
+                            self.resources_kept_safe[res] = 1000
+        elif self.resources_kept_safe != {}:
+            self.logger.info(
+                "Kept resources safe, check if we have enough storage to get them back."
+            )
+            all_good = True
+            for res in self.resources_kept_safe:
+                if self.actual[res] + self.resources_kept_safe[res] >= self.storage:
+                    all_good = False
+                    break
+            if all_good:
+                self.logger.info(
+                    "Have enough storage to remove all resources from the market!"
+                )
+                self.drop_existing_trades()
+                self.resources_kept_safe = {}
 
     def check_premium_price(self):
         url = f"game.php?village={self.village_id}&screen=market&mode=exchange"
@@ -69,7 +113,7 @@ class ResourceManager:
                 # use the notification if current rate is better then than the previous one
                 # or more than 60 minutes have passed since the previous one (antyspam)
                 if (
-                    self.last_notify[p]["amount"] > real_rate[p] 
+                    self.last_notify[p]["amount"] > real_rate[p]
                     or self.last_notify[p]["time"] + 3600 < now
                 ):
                     self.update_notify_resource(p, real_rate[p])
@@ -78,7 +122,7 @@ class ResourceManager:
                 # use the notification if current rate is better then than the previous one
                 # or more than 60 minutes have passed since the previous one (antyspam)
                 if (
-                    self.last_notify[p]["amount"] < real_rate[p] 
+                    self.last_notify[p]["amount"] < real_rate[p]
                     or self.last_notify[p]["time"] + 3600 < now
                 ):
                     self.update_notify_resource(p, real_rate[p])
@@ -104,6 +148,8 @@ class ResourceManager:
 
     def check_state(self):
         for source in self.requested:
+            if source == "snob":
+                continue
             for res in self.requested[source]:
                 if self.requested[source][res] <= self.actual[res]:
                     self.requested[source][res] = 0
@@ -117,9 +163,12 @@ class ResourceManager:
     def can_recruit(self):
         if self.actual["pop"] == 0:
             self.logger.info("Can't recruit, no room for pops!")
+            to_remove = []
             for x in self.requested:
                 if "recruitment" in x:
-                    del self.requested[x]
+                    to_remove.append(x)
+            for x in to_remove:
+                del self.requested[x]
             return False
 
         for x in self.requested:
@@ -185,7 +234,7 @@ class ResourceManager:
             return needed_the_most, needed_amount
         return None
 
-    def trade(self, me_item, me_amount, get_item, get_amount):
+    def trade(self, me_item, me_amount, get_item, get_amount, set_trade_time=True):
         url = f"game.php?village={self.village_id}&screen=market&mode=own_offer"
         res = self.wrapper.get_url(url=url)
         if 'market_merchant_available_count">0' in res.text:
@@ -203,10 +252,17 @@ class ResourceManager:
         post_url = f"game.php?village={self.village_id}&screen=market&mode=own_offer&action=new_offer"
 
         self.wrapper.post_url(post_url, data=payload)
-        self.last_trade = int(time.time())
+        if set_trade_time:
+            self.traded_resources = True
+            self.last_trade = int(time.time())
+        if not me_item in self.resources_on_market:
+            self.resources_on_market[me_item] = me_amount
+        else:
+            self.resources_on_market[me_item] += me_amount
         return True
 
     def drop_existing_trades(self):
+        self.traded_resources = False
         url = f"game.php?village={self.village_id}&screen=market&mode=all_own_offer"
         data = self.wrapper.get_url(url)
         existing = re.findall(r'data-id="(\d+)".+?data-village="(\d+)"', data.text)
@@ -218,7 +274,7 @@ class ResourceManager:
                 post = {f"id_{offer}": "on", "delete": "Verwijderen", "h": self.wrapper.last_h}
                 self.wrapper.post_url(url=post_url, data=post)
                 self.logger.info(f"Removing offer {offer} from market because it existed too long")
-    
+        self.resources_on_market = {}
     def readable_ts(self, seconds):
         seconds -= int(time.time())
         seconds %= 24 * 3600
@@ -230,6 +286,21 @@ class ResourceManager:
         return "%d:%02d:%02d" % (hour, minutes, seconds)
 
     def manage_market(self, drop_existing=True):
+        # Try to 'safe' resources on the market if nessesary
+        self.manage_full_resource()
+        need_to_drop = False
+        for x in self.requested:
+            if x in self.resources_on_market:
+                self.logger.debug(
+                    f"We need {x} and we are currently offering it on the market."
+                )
+                need_to_drop = True
+
+        if need_to_drop:
+            self.drop_existing_trades()
+            # No need to do the market any further
+            return
+
         last = self.last_trade + int(3600 * self.trade_max_per_hour)
         if last > int(time.time()):
             self.logger.debug("Won't trade for %s" % (self.readable_ts(last)))
@@ -239,7 +310,7 @@ class ResourceManager:
         if get_h in range(6) or get_h == 23:
             self.logger.debug("Not managing trades between 23h-6h")
             return
-        if drop_existing:
+        if self.traded_resources and drop_existing and self.resources_kept_safe == {}:
             self.drop_existing_trades()
 
         plenty = self.get_plenty_off()
@@ -247,26 +318,37 @@ class ResourceManager:
             need = self.get_needs()
             if need :
                 # check incoming resources
-                url = f"game.php?village={self.village_id}&screen=market&mode=other_offer"
+                url = (
+                    "game.php?village=%s&screen=market&mode=other_offer"
+                    % self.village_id
+                )
                 res = self.wrapper.get_url(url=url)
-                p = re.compile(r'Aankomend:\s.+\"icon header (.+?)\".+?<\/span>(.+) ', re.M)
+                p = re.compile(
+                    r"Aankomend:\s.+\"icon header (.+?)\".+?<\/span>(.+) ", re.M
+                )
                 incoming = p.findall(res.text)
                 resource_incoming = {}
                 if incoming:
-                    resource_incoming[incoming[0][0].strip()] = int("".join([s for s in incoming[0][1] if s.isdigit()]))
-                    self.logger.info(f"There are resources incoming! {resource_incoming}")
-
+                    resource_incoming[incoming[0][0].strip()] = int(
+                        "".join([s for s in incoming[0][1] if s.isdigit()])
+                    )
+                    self.logger.info(
+                        f"There are resources incoming! {resource_incoming}"
+)
                 item, how_many = need
                 how_many = round(how_many, -1)
                 if item in resource_incoming and resource_incoming[item] >= how_many:
-                    self.logger.info(f"Needed {item} already incoming! ({resource_incoming[item]} >= {how_many})")
+                    self.logger.info(
+                        f"Needed {item} already incoming! ({resource_incoming[item]} >= {how_many})"
+                    )
                     return
                 if how_many < 250:
                     return
 
                 self.logger.debug("Checking current market offers")
-                if self.check_other_offers(item, how_many, plenty):
-                    self.logger.debug("Took market offer!")
+                how_many -= self.check_other_offers(item, how_many, plenty)
+                if how_many < 0:
+                    self.logger(f"Traded enough!")
                     return
 
                 if how_many > self.max_trade_amount:
@@ -292,28 +374,53 @@ class ResourceManager:
 
                 self.trade(plenty, biased, item, how_many)
 
+    def get_incoming_resources(self, res):
+        soup = Soup(res, features="html.parser")
+        inc = soup.select_one(
+            "#market_status_bar table.vis:nth-of-type(2) th:nth-of-type(1)"
+        )
+        p = re.compile(r"\"icon header (.+?)\".+?<\/span>(.+?) <", re.S | re.M)
+        incoming = p.findall(str(inc))
+        resource_incoming = {}
+        for resource, amount_str in incoming:
+            try:
+                amount = int("".join([s for s in amount_str if s.isdigit()]))
+                resource_incoming[resource] = amount
+            except:
+                self.logger.warning(
+                    f"Unable to parse incoming resources! {resource} {amount_str}"
+                )
+                continue
+
+        return resource_incoming
+
     def check_other_offers(self, item, how_many, sell):
+        willing_to_sell = self.actual[sell] - self.in_need_amount(sell) - 500
+        # Always keep at least 500 in the bank
+        if willing_to_sell < 0:
+            self.logger.debug(
+                f"Not willing to sell {sell}. I have {self.actual[sell]} {sell}."
+            )
+            return False
+
         url = f"game.php?village={self.village_id}&screen=market&mode=other_offer"
         res = self.wrapper.get_url(url=url)
         p = re.compile(
             r"(?:<!-- insert the offer -->\n+)\s+<tr>(.*?)<\/tr>", re.S | re.M
         )
         cur_off_tds = p.findall(res.text)
-        p = re.compile(r'Aankomend:\s.+\"icon header (.+?)\".+?<\/span>(.+) ', re.M)
-        incoming = p.findall(res.text)
-        resource_incoming = {}
-        if incoming:
-            resource_incoming[incoming[0][0].strip()] = int("".join([s for s in incoming[0][1] if s.isdigit()]))
-
+        resource_incoming = self.get_incoming_resources(res.text)
+        if resource_incoming != {}:
+            self.logger.debug(f"Resource(s) incoming: {resource_incoming}")
         if item in resource_incoming:
             how_many = how_many - resource_incoming[item]
             if how_many < 1:
                 self.logger.info("Requested resource already incoming!")
                 return False
 
-        willing_to_sell = self.actual[sell] - self.in_need_amount(sell)
-        self.logger.debug(f"Found {len(cur_off_tds)} offers on market, willing to sell {willing_to_sell} {sell}")
-
+        self.logger.debug(
+            f"Found {len(cur_off_tds)} offers on market, willing to sell {willing_to_sell} {sell}"
+        )
 
         for tds in cur_off_tds:
             res_offer = re.findall(
@@ -346,12 +453,34 @@ class ResourceManager:
                 post_url = f"game.php?village={self.village_id}&screen=market&mode=other_offer&action=accept_multi&start=0&id={offer['id']}&h={self.wrapper.last_h}"
                 # print(f"Would post: {post_url} {payload}")
                 self.wrapper.post_url(post_url, data=payload)
-                self.last_trade = int(time.time())
-                self.actual[offer['wanted']] = self.actual[offer['wanted']] - offer['wanted_amount']
-                return True
+                self.actual[offer["wanted"]] = (
+                    self.actual[offer["wanted"]] - offer["wanted_amount"]
+                )
+                return offer["offer_amount"]
+            if (
+                offer["offered"] == item
+                and offer["wanted"] == sell
+                and offer["wanted_amount"] <= willing_to_sell
+            ):
+                self.logger.info(
+                    f"Decent offer: {offer['offer_amount']} {offer['offered']} for {offer['wanted_amount']} {offer['wanted']}"
+                )
+                # Take the deal!
+                payload = {
+                    "count": 1,
+                    "id": offer["id"],
+                    "h": self.wrapper.last_h,
+                }
+                post_url = f"game.php?village={self.village_id}&screen=market&mode=other_offer&action=accept_multi&start=0&id={offer['id']}&h={self.wrapper.last_h}"
+                # print(f"Would post: {post_url} {payload}")
+                self.wrapper.post_url(post_url, data=payload)
+                self.actual[offer["wanted"]] = (
+                    self.actual[offer["wanted"]] - offer["wanted_amount"]
+                )
+                return offer["offer_amount"]
 
         # No useful offers found
-        return False
+        return 0
 
     def parse_res_offer(self, res_offer, id):
         off, want, ratio = res_offer

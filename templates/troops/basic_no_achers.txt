@@ -77,8 +77,7 @@
         "sword": 2,
         "axe": 2,
         "light": 1,
-        "spear": 3,
-        "archer": 1
+        "spear": 3
     },
     "build": {
       "barracks": {
@@ -106,9 +105,8 @@
     "build": {
       "barracks": {
         "spear": 200,
-        "sword": 100,
-        "axe": 250,
-        "archer": 50
+        "sword": 150,
+        "axe": 250
       },
       "stable": {
         "spy": 30,
@@ -131,10 +129,9 @@
     },
     "build": {
       "barracks": {
-        "spear": 500,
-        "sword": 300,
-        "axe": 500,
-        "archer": 100
+        "spear": 550,
+        "sword": 350,
+        "axe": 500
       },
       "stable": {
         "spy": 50,
@@ -153,15 +150,13 @@
         "sword": 10,
         "axe": 10,
         "light": 10,
-        "spear": 10,
-        "archer": 10
+        "spear": 10
     },
     "build": {
       "barracks": {
         "spear": 5000,
         "sword": 3500,
-        "axe": 2500,
-        "archer": 1000
+        "axe": 3500
       },
       "stable": {
         "spy": 1000,
