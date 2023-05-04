@@ -72,7 +72,7 @@ class Village:
         if self.next_event["time"]:
             stne = round(self.next_event["time"] - time.time(), 2)
             self.logger.info(
-                "Seconds until next event: {stne} ({self.next_event['kind']})"
+                f"Seconds until next event: {stne} ({self.next_event['kind']})"
             )
             return stne
         return 0
@@ -98,7 +98,7 @@ class Village:
             if back is not None:
                 first_back = datetime.fromtimestamp(back)
                 self.logger.info(
-                    "First attack to be back home is {first_back} (Skipped {skipped}) | There are {len(returning) + skipped} coming back and {len(outgoing)} attacks underway."
+                    f"First attack to be back home is {first_back} (Skipped {skipped}) | There are {len(returning) + skipped} coming back and {len(outgoing)} attacks underway."
                 )
                 self.set_next_event("back", back)
                 return
@@ -106,7 +106,7 @@ class Village:
         if len(outgoing) > 0:
             first_back = datetime.fromtimestamp(min(outgoing))
             self.logger.info(
-                "First attack to land is {first_back} | There are {len(outgoing)} attacks underway."
+                f"First attack to land is {first_back} | There are {len(outgoing)} attacks underway."
             )
             self.set_next_event("outgoing", min(outgoing))
 
