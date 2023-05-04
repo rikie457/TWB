@@ -286,6 +286,7 @@ class TWB:
                 sleep = 0
                 active_h = [int(x) for x in config["bot"]["active_hours"].split("-")]
                 get_h = time.localtime().tm_hour
+                print("Current hour: %s" % get_h)
                 if get_h in range(active_h[0], active_h[1]):
                     sleep = config["bot"]["active_delay"]
                 else:

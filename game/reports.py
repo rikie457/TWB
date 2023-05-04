@@ -19,20 +19,20 @@ class ReportManager:
     def __init__(self, wrapper=None, village_id=None):
         self.wrapper = wrapper
         self.village_id = village_id
-def last_report_for(self, vid):
-        possible_reports = []
-        for repid in self.last_reports:
-            entry = self.last_reports[repid]
-            if vid == entry["dest"] and "when" in entry["extra"]:
-                possible_reports.append(entry)
-        if len(possible_reports) == 0:
-            return None
+    def last_report_for(self, vid):
+            possible_reports = []
+            for repid in self.last_reports:
+                entry = self.last_reports[repid]
+                if vid == entry["dest"] and "when" in entry["extra"]:
+                    possible_reports.append(entry)
+            if len(possible_reports) == 0:
+                return None
 
-        def highest_when(attack):
-            return datetime.fromtimestamp(int(attack["extra"]["when"]))
+            def highest_when(attack):
+                return datetime.fromtimestamp(int(attack["extra"]["when"]))
 
-        # self.logger.debug(f"Reports: {possible_reports}")
-        return max(possible_reports, key=highest_when)
+            # self.logger.debug(f"Reports: {possible_reports}")
+            return max(possible_reports, key=highest_when)
 
     def priority_farms(self, farms):
         priority = []
