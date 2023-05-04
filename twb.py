@@ -11,14 +11,16 @@ import collections
 import traceback
 import requests
 import logging
+import git
 
+from git import Repo
 from core.extractors import Extractor
 from core.request import WebWrapper
 from game.village import Village
 from manager import VillageManager
 
 coloredlogs.install(
-    level=logging.DEBUG if "-q" not in sys.argv else logging.INFO,
+    level=logging.DEBUG if "-d" in sys.argv else logging.INFO,
     fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
@@ -426,6 +428,19 @@ class TWB:
 for x in range(3):
     t = TWB()
     try:
+        if 'git' in sys.modules:
+            repo = Repo('.')
+            repo.remotes.origin.fetch()
+            current_commit_hash = repo.git.rev_parse("HEAD")
+            latest_commit_hash = repo.git.rev_parse("origin/master")
+
+            if current_commit_hash != latest_commit_hash:
+                t.logger.warning(f"Current git hash {current_commit_hash} is not up to date!")
+                t.logger.warning(f"Do you want to update to {latest_commit_hash}? [nY]")
+                response = input()
+                if(response == "Y"):
+                    repo.remotes.origin.pull()
+
         t.start()
     except Exception as e:
         t.wrapper.reporter.report(0, "TWB_EXCEPTION", str(e))

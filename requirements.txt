@@ -4,3 +4,4 @@ psutil
 flask
 beautifulsoup4
 discord_webhook
+gitpython
