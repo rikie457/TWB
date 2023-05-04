@@ -22,8 +22,8 @@
       }
     },
     "farm": [
-      {"spear": 30, "knight": 1},
-      {"spear": 30},
+      {"spear": 20, "knight": 1},
+      {"spear": 20},
       {"spear": 15, "sword": 20}
     ]
   },
