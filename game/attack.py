@@ -114,8 +114,9 @@ class AttackManager:
                 "spy" not in self.troopmanager.troops
                 or int(self.troopmanager.troops["spy"]) < max_scouts_used
             ):
+                amount_of_spies = self.troopmanager.troops['spy'] if 'spy' in self.troopmanager.troops else 0
                 self.logger.debug(
-                    f"We have {self.troopmanager.troops['spy']} scouts. Not enough to scout out farms..."
+                    f"We have {amount_of_spies} scouts. Not enough to scout out farms..."
                 )
             else:
                 self.logger.debug(
