@@ -9,7 +9,7 @@
       }
     },
     "farm": [
-        {"spear": 20}
+        {"spear": 10}
     ]
   },
   {
@@ -22,9 +22,9 @@
       }
     },
     "farm": [
-      {"spear": 20, "knight": 1},
-      {"spear": 20},
-      {"spear": 15, "sword": 20}
+      {"spear": 10, "knight": 1},
+      {"spear": 10},
+      {"spear": 10, "sword": 20}
     ]
   },
   {
@@ -39,7 +39,11 @@
     },
     "farm": [
       {"axe": 5},
-      {"spear": 15}
+      {"axe": 5},
+      {"axe": 5},
+      {"axe": 5},
+      {"spear": 10},
+      {"spear": 10}
     ]
   },
   {
@@ -54,9 +58,11 @@
     },
     "farm": [
       {"axe": 15, "spy": 1},
-      {"spear": 30, "spy": 1},
+      {"spear": 10, "spy": 1},
       {"axe": 15},
-      {"spear": 30}
+      {"spear": 10},
+      {"spear": 10},
+      {"spear": 10}
     ]
   },
   {
