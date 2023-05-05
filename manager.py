@@ -6,7 +6,6 @@ import sys
 from game.reports import ReportCache
 from game.attack import AttackCache
 
-
 class VillageManager:
     @staticmethod
     def farm_manager(verbose=False, clean_reports=False):
@@ -130,7 +129,7 @@ class VillageManager:
 
         if clean_reports:
             list_of_files = sorted(["./cache/reports/" + f for f in os.listdir("./cache/reports/")],
-                                   key=os.path.getctime,
+            key=os.path.getctime,
         )
 
             logger.info(f"Found {len(list_of_files)} files")
