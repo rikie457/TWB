@@ -14,6 +14,7 @@ import logging
 import git
 
 from git import Repo
+from utilities.git import Git
 from core.extractors import Extractor
 from core.request import WebWrapper
 from game.village import Village
@@ -427,9 +428,10 @@ class TWB:
 
 for x in range(3):
     t = TWB()
+    path = '.'; 
     try:
-        if 'git' in sys.modules:
-            repo = Repo('.')
+        if ('git' in sys.modules and Git.is_git_repo(path)):
+            repo = Repo(path)
             repo.remotes.origin.fetch()
             current_commit_hash = repo.git.rev_parse("HEAD")
             latest_commit_hash = repo.git.rev_parse("origin/master")

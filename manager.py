@@ -6,7 +6,6 @@ import sys
 from game.reports import ReportCache
 from game.attack import AttackCache
 
-
 class VillageManager:
     @staticmethod
     def farm_manager(verbose=False, clean_reports=False):
@@ -34,8 +33,8 @@ class VillageManager:
                 if reports[rep]["dest"] == farm and reports[rep]["type"] == "attack":
                     for unit in reports[rep]["extra"]["units_sent"]:
                         total_sent_count += reports[rep]["extra"]["units_sent"][unit]
-                    for unit in reports[rep]["losses"]:
-                        total_loss_count += reports[rep]["losses"][unit]
+                    for unit in reports[rep]["extra"]["units_losses"]:
+                        total_loss_count += reports[rep]["extra"]["units_losses"][unit]
                     try:
                         res = reports[rep]["extra"]["loot"]
                         for r in res:
@@ -48,15 +47,15 @@ class VillageManager:
             if total_sent_count > 0:
                 percentage_lost = total_loss_count / total_sent_count * 100
 
-            perf = "Normal ".rjust(15)
+            perf = "Normal Profile "
             if data["high_profile"]:
-                perf = "High Profile ".rjust(15)
+                perf = "High Profile "
             if "low_profile" in data and data["low_profile"]:
-                perf = "Low Profile ".rjust(15)
+                perf = "Low Profile "
             if verbose:
                 logger.info(
                     "%sFarm village %s attacked %d times - Total loot: %s - Total units lost: %s (%s)",
-                    perf, farm, len(num_attack), str(loot), str(total_loss_count), str(percentage_lost)
+                    perf, farm, len(num_attack), str(loot), str(total_loss_count), str(round(percentage_lost, 2))
                 )
             if len(num_attack):
                 total = 0
@@ -130,7 +129,7 @@ class VillageManager:
 
         if clean_reports:
             list_of_files = sorted(["./cache/reports/" + f for f in os.listdir("./cache/reports/")],
-                                   key=os.path.getctime,
+            key=os.path.getctime,
         )
 
             logger.info(f"Found {len(list_of_files)} files")

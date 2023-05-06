@@ -11,10 +11,11 @@ class ResourceManager:
 
     requested = {}
 
-    last_notify = {"wood": {"time": 0, "amount": 0},
-                   "iron": {"time": 0, "amount": 0},
-                   "stone": {"time": 0, "amount": 0}
-                  }
+    last_notify = {
+        "wood": {"time": 0, "amount": 0},
+        "iron": {"time": 0, "amount": 0},
+        "stone": {"time": 0, "amount": 0}
+    }
 
     continent = None
     storage = 0
