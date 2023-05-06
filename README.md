@@ -1,3 +1,11 @@
+### NEW in 1.7.2
+- Various fixes
+- Update prompt when local version is not up to date with master.
+
+### NEW in 1.7.1
+- Various fixes
+- Using JSON instead of text files for unit templates (Just rename .txt to .json)
+
 ### NEW in 1.7
 - Merged various features together from davidakachaos
 
