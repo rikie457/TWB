@@ -28,7 +28,7 @@
 - Fixed selling resources for pp
 - Fixed receiving rewards
 
-### Forked! Every commit and version after this (⬇️) release is developed by me.
+### Forked! Every commit and version after this (⬇️) release is developed by SyM3N.
 
 ### New in 1.5
 - Nice configuration dashboard
